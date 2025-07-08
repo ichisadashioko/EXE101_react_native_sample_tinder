@@ -1,8 +1,14 @@
-import { DynamicImage } from '@/components/ui/DynamicImage';
+import { ThemedText } from '@/components/ThemedText';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, PanResponder, View } from 'react-native';
+import { Animated, Dimensions, ImageBackground, PanResponder, View } from 'react-native';
 
-export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style, disabled }) => {
+export const SwipeCard = ({
+    image_source,
+    onSwipeLeft,
+    onSwipeRight,
+    style,
+    disabled
+}) => {
     const pan = useRef(new Animated.ValueXY()).current;
     const screenWidth = Dimensions.get('window').width;
     const [resetKey, setResetKey] = useState(0);
@@ -45,7 +51,7 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style, disabled
 
     useEffect(() => {
         pan.setValue({ x: 0, y: 0 });
-    }, [children, resetKey]);
+    }, [resetKey]);
 
     return (
         <Animated.View
@@ -53,17 +59,20 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style, disabled
             style={[style, { transform: pan.getTranslateTransform() }]}
             {...(!disabled ? panResponder.panHandlers : {})}
         >
-            <View>{children}</View>
+            <ImageBackground
+                source={image_source}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="contain"
+            >
+                <ThemedText >sample text</ThemedText>
+            </ImageBackground>
         </Animated.View>
     );
 }
 
 
-// Memoized DynamicImage to avoid unnecessary re-renders
-const MemoizedDynamicImage = React.memo(DynamicImage);
-
 export default function MatchScreen() {
-    const STACK_SIZE = 3;
+    const STACK_SIZE = 2;
     const [cards, setCards] = useState([
         require('../../assets/images/wuwa_01.png'),
         require('../../assets/images/wuwa_02.png'),
@@ -99,6 +108,7 @@ export default function MatchScreen() {
                 const isTop = i === STACK_SIZE - 1;
                 return (
                     <SwipeCard
+                        image_source={card}
                         key={i}
                         style={{
                             position: 'absolute',
@@ -107,19 +117,13 @@ export default function MatchScreen() {
                             justifyContent: 'center',
                             alignItems: 'center',
                             zIndex: i,
-                            opacity: 1 - (STACK_SIZE - 1 - i) * 0.15,
+                            // opacity: 1 - (STACK_SIZE - 1 - i) * 0.15,
                             transform: [{ scale: 1 - (STACK_SIZE - 1 - i) * 0.05 }],
                         }}
                         onSwipeLeft={isTop ? handleSwipe : undefined}
                         onSwipeRight={isTop ? handleSwipe : undefined}
                         disabled={!isTop}
-                    >
-                        <MemoizedDynamicImage
-                            container_size={containerSize}
-                            source={card}
-                            style={{ flex: 1, width: '100%', height: '100%' }}
-                        />
-                    </SwipeCard>
+                    />
                 );
             })}
         </View>
