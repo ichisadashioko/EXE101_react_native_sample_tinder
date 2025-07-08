@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, PanResponder, View } from 'react-native';
 
-export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
+export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style, disabled }) => {
     const pan = useRef(new Animated.ValueXY()).current;
     const screenWidth = Dimensions.get('window').width;
+    const [resetKey, setResetKey] = useState(0);
 
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => !disabled,
             onPanResponderMove: Animated.event(
                 [null, { dx: pan.x, dy: pan.y }],
                 { useNativeDriver: false }
@@ -18,7 +19,8 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
                         toValue: { x: screenWidth, y: 0 },
                         useNativeDriver: true
                     }).start(() => {
-                        pan.setValue({ x: 0, y: 0 }); // Reset position after swipe
+                        pan.setValue({ x: 0, y: 0 });
+                        setResetKey(k => k + 1); // force remount
                         onSwipeRight && onSwipeRight();
                     });
                 } else if (gestureState.dx < -screenWidth / 3) {
@@ -26,7 +28,8 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
                         toValue: { x: -screenWidth, y: 0 },
                         useNativeDriver: true
                     }).start(() => {
-                        pan.setValue({ x: 0, y: 0 }); // Reset position after swipe
+                        pan.setValue({ x: 0, y: 0 });
+                        setResetKey(k => k + 1); // force remount
                         onSwipeLeft && onSwipeLeft();
                     });
                 } else {
@@ -40,20 +43,25 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
     ).current;
 
     useEffect(() => {
-        pan.setValue({ x: 0, y: 0 }); // Reset position when component remounts or children change
-    }, [children]);
+        pan.setValue({ x: 0, y: 0 });
+    }, [children, resetKey]);
 
     return (
         <Animated.View
+            key={resetKey}
             style={[style, { transform: pan.getTranslateTransform() }]}
-            {...panResponder.panHandlers}
+            {...(!disabled ? panResponder.panHandlers : {})}
         >
             <View>{children}</View>
         </Animated.View>
     );
 }
 
-export function DynamicImage({ source, style }) {
+export function DynamicImage({
+    source, style,
+    container_size = { width: 512, height: 512 },
+    // on_container_size_change
+}) {
     const [imageSize, setImageSize] = useState({
         real_width: 0,
         real_height: 0,
@@ -96,46 +104,47 @@ export function DynamicImage({ source, style }) {
         if (typeof internal_source === 'number') {
             // local image
             const { width, height } = Image.resolveAssetSource(internal_source);
-            set_image_render_size(width, height);
+            set_image_render_size(width, height, container_size);
         } else if (internal_source.width && internal_source.height) {
             // already has width and height
             console.log('Image already has dimensions:', internal_source.width, internal_source.height);
-            set_image_render_size(internal_source.width, internal_source.height);
+            set_image_render_size(internal_source.width, internal_source.height, container_size);
         }
         else {
             // remote image
             Image.getSize(internal_source.uri, (width, height) => {
-                set_image_render_size(width, height);
+                set_image_render_size(width, height, container_size);
             }, (error) => {
                 console.error('Error getting image size:', error);
             });
         }
-    }, [internal_source]);
+    }, [internal_source, container_size]);
 
     return (
-        <View
-            onLayout={e => {
-                const { width, height } = e.nativeEvent.layout;
-                if (imageSize.updated) {
-                    set_image_render_size(
-                        imageSize.real_width,
-                        imageSize.real_height,
-                        { width, height }
-                    );
-                }
-            }}
-            style={[{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }, style]}
-        >
-            <Image
-                source={internal_source}
-                style={{ width: imageSize.width, height: imageSize.height }}
-                resizeMode='contain'
-            />
-        </View>
+        // <View
+        //     onLayout={e => {
+        //         const { width, height } = e.nativeEvent.layout;
+        //         if (imageSize.updated) {
+        //             set_image_render_size(
+        //                 imageSize.real_width,
+        //                 imageSize.real_height,
+        //                 { width, height }
+        //             );
+        //         }
+        //     }}
+        //     style={[{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }, style]}
+        // >
+        <Image
+            source={internal_source}
+            style={{ width: imageSize.width, height: imageSize.height }}
+            resizeMode='contain'
+        />
+        // </View>
     );
 }
 
 export default function MatchScreen() {
+    const STACK_SIZE = 3;
     const [cards, setCards] = useState([
         require('../../assets/images/wuwa_01.png'),
         require('../../assets/images/wuwa_02.png'),
@@ -145,53 +154,51 @@ export default function MatchScreen() {
         // ...more
     ]);
 
+    // Move the swiped card to the end of the stack
     const handleSwipe = () => {
-        setCards(prev => prev.slice(1));
+        setCards(prev => {
+            const [first, ...rest] = prev;
+            return [...rest, first];
+        });
     };
 
-    let image_url = require('../../assets/images/wuwa_05.png');
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
     return (
-        <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-            {cards.length > 1 && (
-                <DynamicImage
-                    source={cards[1]}
-                    style={{
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        opacity: 0.7,
-                        transform: [{ scale: 0.95 }],
-                        zIndex: 0,
-                    }}
-                />
-            )}
-            {cards.length > 0 && (
-                <SwipeCard style={{
-                    width: '100%',
-                    height: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 1,
-                }}
-                    onSwipeLeft={() => {
-                        console.log('Swiped Left');
-                        handleSwipe();
-                    }}
-                    onSwipeRight={() => {
-                        console.log('Swiped Right');
-                        handleSwipe();
-                    }}
-                >
-                    <DynamicImage
-                        source={cards[0]}
+        <View
+            onLayout={e => {
+                const { width, height } = e.nativeEvent.layout;
+                console.log('Container size:', width, height);
+                setContainerSize({ width, height });
+            }}
+            style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+            {cards.slice(0, STACK_SIZE).reverse().map((card, i) => {
+                const isTop = i === STACK_SIZE - 1;
+                return (
+                    <SwipeCard
+                        key={cards.indexOf(card)}
                         style={{
-                            flex: 1,
-                            backgroundColor: '#222', width: '100%', height: '100%'
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: i,
+                            opacity: 1 - (STACK_SIZE - 1 - i) * 0.15,
+                            transform: [{ scale: 1 - (STACK_SIZE - 1 - i) * 0.05 }],
                         }}
-                    />
-                </SwipeCard>
-            )}
+                        onSwipeLeft={isTop ? handleSwipe : undefined}
+                        onSwipeRight={isTop ? handleSwipe : undefined}
+                        disabled={!isTop}
+                    >
+                        <DynamicImage
+                            container_size={containerSize}
+                            source={card}
+                            style={{ flex: 1, width: '100%', height: '100%' }}
+                        />
+                    </SwipeCard>
+                );
+            })}
         </View>
     );
 }
