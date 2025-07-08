@@ -60,7 +60,6 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style, disabled
 export function DynamicImage({
     source, style,
     container_size = { width: 512, height: 512 },
-    // on_container_size_change
 }) {
     const [imageSize, setImageSize] = useState({
         real_width: 0,
@@ -76,6 +75,9 @@ export function DynamicImage({
         internal_source = source;
     } else if (typeof source === 'string') {
         internal_source = { uri: source };
+    } else if(typeof source === 'number'){
+        // internal_source = Image.resolveAssetSource(source);
+        internal_source = source; // Assuming source is a local image asset
     } else {
         console.error('Invalid source type for DynamicImage:', source);
         return null;
