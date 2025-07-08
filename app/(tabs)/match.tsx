@@ -121,27 +121,16 @@ export function DynamicImage({
     }, [internal_source, container_size]);
 
     return (
-        // <View
-        //     onLayout={e => {
-        //         const { width, height } = e.nativeEvent.layout;
-        //         if (imageSize.updated) {
-        //             set_image_render_size(
-        //                 imageSize.real_width,
-        //                 imageSize.real_height,
-        //                 { width, height }
-        //             );
-        //         }
-        //     }}
-        //     style={[{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }, style]}
-        // >
         <Image
             source={internal_source}
             style={{ width: imageSize.width, height: imageSize.height }}
             resizeMode='contain'
         />
-        // </View>
     );
 }
+
+// Memoized DynamicImage to avoid unnecessary re-renders
+const MemoizedDynamicImage = React.memo(DynamicImage);
 
 export default function MatchScreen() {
     const STACK_SIZE = 3;
@@ -164,19 +153,23 @@ export default function MatchScreen() {
 
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+    // Only update container size if it actually changes
+    const handleLayout = React.useCallback((e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setContainerSize(prev =>
+            prev.width !== width || prev.height !== height ? { width, height } : prev
+        );
+    }, []);
+
     return (
         <View
-            onLayout={e => {
-                const { width, height } = e.nativeEvent.layout;
-                console.log('Container size:', width, height);
-                setContainerSize({ width, height });
-            }}
+            onLayout={handleLayout}
             style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
             {cards.slice(0, STACK_SIZE).reverse().map((card, i) => {
                 const isTop = i === STACK_SIZE - 1;
                 return (
                     <SwipeCard
-                        key={cards.indexOf(card)}
+                        key={i}
                         style={{
                             position: 'absolute',
                             width: '100%',
@@ -191,7 +184,7 @@ export default function MatchScreen() {
                         onSwipeRight={isTop ? handleSwipe : undefined}
                         disabled={!isTop}
                     >
-                        <DynamicImage
+                        <MemoizedDynamicImage
                             container_size={containerSize}
                             source={card}
                             style={{ flex: 1, width: '100%', height: '100%' }}
