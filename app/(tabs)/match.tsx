@@ -17,12 +17,18 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
                     Animated.spring(pan, {
                         toValue: { x: screenWidth, y: 0 },
                         useNativeDriver: true
-                    }).start(() => onSwipeRight && onSwipeRight());
+                    }).start(() => {
+                        pan.setValue({ x: 0, y: 0 }); // Reset position after swipe
+                        onSwipeRight && onSwipeRight();
+                    });
                 } else if (gestureState.dx < -screenWidth / 3) {
                     Animated.spring(pan, {
                         toValue: { x: -screenWidth, y: 0 },
                         useNativeDriver: true
-                    }).start(() => onSwipeLeft && onSwipeLeft());
+                    }).start(() => {
+                        pan.setValue({ x: 0, y: 0 }); // Reset position after swipe
+                        onSwipeLeft && onSwipeLeft();
+                    });
                 } else {
                     Animated.spring(pan, {
                         toValue: { x: 0, y: 0 },
@@ -32,6 +38,10 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
             }
         })
     ).current;
+
+    useEffect(() => {
+        pan.setValue({ x: 0, y: 0 }); // Reset position when component remounts or children change
+    }, [children]);
 
     return (
         <Animated.View
@@ -43,55 +53,145 @@ export const SwipeCard = ({ children, onSwipeLeft, onSwipeRight, style }) => {
     );
 }
 
-export default function MatchScreen() {
-    const [imageSize, setImageSize] = useState({ width: 512, height: 512 });
+export function DynamicImage({ source, style }) {
+    const [imageSize, setImageSize] = useState({
+        real_width: 0,
+        real_height: 0,
+        width: 512,
+        height: 512,
+        updated: false
+    });
 
-    let image_url = require('../../assets/images/wuwa_05.png');
+    let internal_source = null;
+
+    if (typeof source === 'object' && source.uri && source.width && source.height) {
+        internal_source = source;
+    } else if (typeof source === 'string') {
+        internal_source = { uri: source };
+    } else {
+        console.error('Invalid source type for DynamicImage:', source);
+        return null;
+    }
+
+    function set_image_render_size(
+        width: number,
+        height: number,
+        container_size: { width: number, height: number } = { width: 512, height: 512 }
+    ) {
+        console.log('Calculating image size...');
+        // const window_size = Dimensions.get('window');
+        const resize_factor = Math.min(container_size.width / width, container_size.height / height);
+        const newWidth = width * resize_factor;
+        const newHeight = height * resize_factor;
+        console.log(`New size: ${newWidth}x${newHeight}`);
+        setImageSize({
+            real_width: width,
+            real_height: height,
+            width: newWidth, height: newHeight, updated: true
+        });
+    }
 
     useEffect(() => {
-        function set_image_render_size(width: number, height: number) {
-            console.log('Calculating image size...');
-            const window_size = Dimensions.get('window');
-            const aspectRatio = width / height;
-            const resize_factor = Math.min(window_size.width / width, window_size.height / height);
-            const newWidth = width * resize_factor;
-            const newHeight = height * resize_factor;
-            console.log(`New size: ${newWidth}x${newHeight}`);
-            setImageSize({ width: newWidth, height: newHeight });
-        }
-
-        console.log('Image URL:', image_url);
-        if (typeof image_url === 'number') {
+        console.log('image_source:', internal_source);
+        if (typeof internal_source === 'number') {
             // local image
-            const { width, height } = Image.resolveAssetSource(image_url);
+            const { width, height } = Image.resolveAssetSource(internal_source);
             set_image_render_size(width, height);
-        } else if (image_url.width && image_url.height) {
+        } else if (internal_source.width && internal_source.height) {
             // already has width and height
-            console.log('Image already has dimensions:', image_url.width, image_url.height);
-            set_image_render_size(image_url.width, image_url.height);
+            console.log('Image already has dimensions:', internal_source.width, internal_source.height);
+            set_image_render_size(internal_source.width, internal_source.height);
         }
         else {
             // remote image
-            Image.getSize(image_url, (width, height) => {
+            Image.getSize(internal_source.uri, (width, height) => {
                 set_image_render_size(width, height);
             }, (error) => {
                 console.error('Error getting image size:', error);
             });
         }
-    }, [image_url]);
+    }, [internal_source]);
+
+    return (
+        <View
+            onLayout={e => {
+                const { width, height } = e.nativeEvent.layout;
+                if (imageSize.updated) {
+                    set_image_render_size(
+                        imageSize.real_width,
+                        imageSize.real_height,
+                        { width, height }
+                    );
+                }
+            }}
+            style={[{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }, style]}
+        >
+            <Image
+                source={internal_source}
+                style={{ width: imageSize.width, height: imageSize.height }}
+                resizeMode='contain'
+            />
+        </View>
+    );
+}
+
+export default function MatchScreen() {
+    const [cards, setCards] = useState([
+        require('../../assets/images/wuwa_01.png'),
+        require('../../assets/images/wuwa_02.png'),
+        require('../../assets/images/wuwa_03.png'),
+        require('../../assets/images/wuwa_04.png'),
+        require('../../assets/images/wuwa_05.png'),
+        // ...more
+    ]);
+
+    const handleSwipe = () => {
+        setCards(prev => prev.slice(1));
+    };
+
+    let image_url = require('../../assets/images/wuwa_05.png');
 
     return (
         <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-            <SwipeCard style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
-                onSwipeLeft={() => console.log('Swiped Left')}
-                onSwipeRight={() => console.log('Swiped Right')}
-            >
-                <Image
-                    style={{ width: imageSize.width, height: imageSize.height }}
-                    source={image_url}
-                    resizeMode="contain"
+            {cards.length > 1 && (
+                <DynamicImage
+                    source={cards[1]}
+                    style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0.7,
+                        transform: [{ scale: 0.95 }],
+                        zIndex: 0,
+                    }}
                 />
-            </SwipeCard>
+            )}
+            {cards.length > 0 && (
+                <SwipeCard style={{
+                    width: '100%',
+                    height: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1,
+                }}
+                    onSwipeLeft={() => {
+                        console.log('Swiped Left');
+                        handleSwipe();
+                    }}
+                    onSwipeRight={() => {
+                        console.log('Swiped Right');
+                        handleSwipe();
+                    }}
+                >
+                    <DynamicImage
+                        source={cards[0]}
+                        style={{
+                            flex: 1,
+                            backgroundColor: '#222', width: '100%', height: '100%'
+                        }}
+                    />
+                </SwipeCard>
+            )}
         </View>
     );
 }
