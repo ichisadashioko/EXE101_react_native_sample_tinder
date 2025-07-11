@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
+import { ImageBackground } from 'expo-image';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, ImageBackground, PanResponder, View } from 'react-native';
-
+import { Animated, Dimensions, PanResponder, View } from 'react-native';
 export const SwipeCard = ({
     image_source,
     onSwipeLeft,
@@ -59,13 +59,25 @@ export const SwipeCard = ({
             style={[style, { transform: pan.getTranslateTransform() }]}
             {...(!disabled ? panResponder.panHandlers : {})}
         >
-            <ImageBackground
-                source={image_source}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
+            <View
+                style={{
+                    position: 'absolute',
+                    top: 0, left: 0,
+                    backgroundColor: 'transparent',
+                    width: '100%', height: '100%'
+                }}
+                pointerEvents="none"
             >
-                <ThemedText >sample text</ThemedText>
-            </ImageBackground>
+                <ImageBackground
+                    pointerEvents="none"
+                    source={image_source}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit='contain'
+                >
+                    <ThemedText
+                        pointerEvents="none" >sample text</ThemedText>
+                </ImageBackground>
+            </View>
         </Animated.View>
     );
 }
