@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ImageBackground } from 'expo-image';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, PanResponder, View } from 'react-native';
+import { Animated, Dimensions, LayoutChangeEvent, PanResponder, ScrollView, View } from 'react-native';
 export const SwipeCard = ({
     image_source,
     onSwipeLeft,
@@ -59,25 +59,44 @@ export const SwipeCard = ({
             style={[style, { transform: pan.getTranslateTransform() }]}
             {...(!disabled ? panResponder.panHandlers : {})}
         >
-            <View
+            <ScrollView
                 style={{
-                    position: 'absolute',
-                    top: 0, left: 0,
-                    backgroundColor: 'transparent',
-                    width: '100%', height: '100%'
+                    width: '100%',
+                    flex: 1
                 }}
-                pointerEvents="none"
+                contentContainerStyle={{ flexGrow: 1 }}
             >
-                <ImageBackground
+                <View
+                    style={{
+                        // position: 'absolute',
+                        top: 0, left: 0,
+                        backgroundColor: 'transparent',
+                        width: '100%', height: '90%'
+                    }}
                     pointerEvents="none"
-                    source={image_source}
-                    style={{ width: '100%', height: '100%' }}
-                    contentFit='contain'
                 >
-                    <ThemedText
-                        pointerEvents="none" >sample text</ThemedText>
-                </ImageBackground>
-            </View>
+                    <ImageBackground
+                        pointerEvents="none"
+                        source={image_source}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit='contain'
+                    >
+                        <ThemedText
+                            pointerEvents="none" >sample text</ThemedText>
+                    </ImageBackground>
+                </View>
+                {/* Add more content here that you want to be scrollable */}
+                <View style={{
+                    // height: 500,
+                    backgroundColor: '#222',
+                    // marginTop: '100%'
+                }}>
+                    <ThemedText>Location: USA</ThemedText>
+                    <ThemedText>Age: 25</ThemedText>
+                    <ThemedText>Like: Cats</ThemedText>
+                    <ThemedText>Dislike: Dogs</ThemedText>
+                </View>
+            </ScrollView>
         </Animated.View>
     );
 }
@@ -105,7 +124,7 @@ export default function MatchScreen() {
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
     // Only update container size if it actually changes
-    const handleLayout = React.useCallback((e) => {
+    const handleLayout = React.useCallback((e: LayoutChangeEvent) => {
         const { width, height } = e.nativeEvent.layout;
         setContainerSize(prev =>
             prev.width !== width || prev.height !== height ? { width, height } : prev
