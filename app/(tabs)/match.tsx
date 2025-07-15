@@ -1,13 +1,26 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ImageBackground } from 'expo-image';
+import { useRouter } from 'expo-router'; // Import useRouter
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, LayoutChangeEvent, PanResponder, ScrollView, View } from 'react-native';
-export const SwipeCard = ({
+import { Animated, Dimensions, LayoutChangeEvent, PanResponder, Pressable, ScrollView, StyleProp, View, ViewStyle } from 'react-native'; // Import Pressable and StyleProp, ViewStyle
+
+// Define types for SwipeCard props
+interface SwipeCardProps {
+    image_source: any; // You might want to define a more specific type for image_source
+    onSwipeLeft?: () => void;
+    onSwipeRight?: () => void;
+    style?: StyleProp<ViewStyle>; // Use StyleProp<ViewStyle> for style prop
+    disabled?: boolean;
+    onPress?: () => void; // Add onPress to props
+}
+
+export const SwipeCard: React.FC<SwipeCardProps> = ({
     image_source,
     onSwipeLeft,
     onSwipeRight,
     style,
-    disabled
+    disabled,
+    onPress
 }) => {
     const pan = useRef(new Animated.ValueXY()).current;
     const screenWidth = Dimensions.get('window').width;
@@ -59,6 +72,19 @@ export const SwipeCard = ({
             style={[style, { transform: pan.getTranslateTransform() }]}
             {...(!disabled ? panResponder.panHandlers : {})}
         >
+            <Pressable // Wrap content in Pressable
+                onPress={onPress} // Pass the onPress prop
+                style={{
+                    position: 'absolute',
+                    top: 0, right: 0,
+                    backgroundColor: '#222',
+                    borderRadius: 5,
+                    padding: 10,
+                    zIndex: 1, // Ensure it appears above the image
+                }} // Ensure Pressable takes full space
+            >
+                <ThemedText>details</ThemedText>
+            </Pressable>
             <ScrollView
                 style={{
                     width: '100%',
@@ -113,6 +139,8 @@ export default function MatchScreen() {
         // ...more
     ]);
 
+    const router = useRouter(); // Initialize router
+
     // Move the swiped card to the end of the stack
     const handleSwipe = () => {
         setCards(prev => {
@@ -120,6 +148,15 @@ export default function MatchScreen() {
             return [...rest, first];
         });
     };
+
+    const handleCardPress = (cardData: any) => { // Add type for cardData
+        // Navigate to the detail screen, passing card data if needed
+        // You'll need to replace '/detail-profile' with your actual route
+        // and pass appropriate data (e.g., an ID) to identify the profile.
+        // router.push({ pathname: '/(tabs)/detail', params: { data: JSON.stringify(cardData) } }); // Updated route
+        router.push({ pathname: '/detail', params: { data: JSON.stringify(cardData) } }); // Updated route
+    };
+
 
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
@@ -154,6 +191,7 @@ export default function MatchScreen() {
                         onSwipeLeft={isTop ? handleSwipe : undefined}
                         onSwipeRight={isTop ? handleSwipe : undefined}
                         disabled={!isTop}
+                        onPress={isTop ? () => handleCardPress(card) : undefined} // Pass the press handler
                     />
                 );
             })}
