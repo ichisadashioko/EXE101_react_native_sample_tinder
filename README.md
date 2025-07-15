@@ -2,6 +2,15 @@
 
 ```sh
 eas build --platform android --local
+
+
+export BUNDLETOOL_FILEPATH="/tmp/bundletool-all-1.18.1.jar"
+export AAB_INPUT_FILEPATH=build.aab
+
+# split apks
+java -jar $BUNDLETOOL_FILEPATH build-apks --bundle=$AAB_INPUT_FILEPATH --output=${AAB_INPUT_FILEPATH}.apks
+# universal apk
+java -jar $BUNDLETOOL_FILEPATH build-apks --bundle=$AAB_INPUT_FILEPATH --output=${AAB_INPUT_FILEPATH}.universal.apks --mode=universal
 ```
 
 # Welcome to your Expo app 👋
